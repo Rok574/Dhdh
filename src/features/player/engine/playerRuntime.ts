@@ -192,31 +192,75 @@ export class PlayerRuntime {
   }
 
   private setupMediaSession() {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    this.registerMediaSessionHandlers();
+  }
 
+  // safe to call repeatedly. ios only shows next / previous on the lock screen
+  // and control center for handlers it sees while a media session is active,
+  // so this is re-run whenever playback starts or the track changes, not just
+  // once at boot (when nothing is playing yet).
+  private registerMediaSessionHandlers() {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const set = (
+      action: MediaSessionAction,
+      handler: MediaSessionActionHandler | null,
+    ) => {
+      try {
+        ms.setActionHandler(action, handler);
+      } catch {
+        // ignore unsupported media session actions
+      }
+    };
+
+    set("play", () => {
+      usePlayerStore.getState().dispatch({ type: "RESUME_REQUESTED" });
+    });
+    set("pause", () => {
+      usePlayerStore.getState().dispatch({ type: "PAUSE_REQUESTED" });
+    });
+    set("previoustrack", () => {
+      usePlayerStore.getState().dispatch({ type: "SKIP_PREVIOUS" });
+    });
+    set("nexttrack", () => {
+      usePlayerStore.getState().dispatch({ type: "SKIP_NEXT" });
+    });
+    set("seekto", (details) => {
+      if (details.seekTime !== undefined && !Number.isNaN(details.seekTime)) {
+        usePlayerStore.getState().dispatch({
+          type: "SEEK_COMMITTED",
+          positionMs: Math.round(details.seekTime * 1000),
+        });
+      }
+    });
+    // when these are set (or left to the default) ios shows +-10s skip buttons
+    // in place of next / previous, so clear them explicitly.
+    set("seekbackward", null);
+    set("seekforward", null);
+  }
+
+  private updateMediaSessionPlaybackState(state: MediaSessionPlaybackState) {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     try {
-      navigator.mediaSession.setActionHandler("play", () => {
-        usePlayerStore.getState().dispatch({ type: "RESUME_REQUESTED" });
-      });
-      navigator.mediaSession.setActionHandler("pause", () => {
-        usePlayerStore.getState().dispatch({ type: "PAUSE_REQUESTED" });
-      });
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        usePlayerStore.getState().dispatch({ type: "SKIP_PREVIOUS" });
-      });
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        usePlayerStore.getState().dispatch({ type: "SKIP_NEXT" });
-      });
-      navigator.mediaSession.setActionHandler("seekto", (details) => {
-        if (details.seekTime !== undefined && !Number.isNaN(details.seekTime)) {
-          usePlayerStore.getState().dispatch({
-            type: "SEEK_COMMITTED",
-            positionMs: Math.round(details.seekTime * 1000),
-          });
-        }
+      navigator.mediaSession.playbackState = state;
+    } catch {
+      // ignore
+    }
+  }
+
+  private updateMediaSessionPosition() {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const audio = this.audio;
+    const duration = audio.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: audio.playbackRate || 1,
+        position: Math.min(Math.max(audio.currentTime || 0, 0), duration),
       });
     } catch {
-      // ignore unsupported media session actions
+      // ignore invalid position state
     }
   }
 
@@ -243,6 +287,7 @@ export class PlayerRuntime {
     } catch {
       // ignore metadata assignment failures
     }
+    this.registerMediaSessionHandlers();
   }
 
   private setupAudioListeners(audioEl: HTMLAudioElement) {
@@ -262,6 +307,12 @@ export class PlayerRuntime {
       if (Number.isNaN(audioEl.duration) || audioEl.duration <= 0) return;
 
       usePlayerStore.getState().setDuration(Math.round(audioEl.duration * 1000));
+      this.updateMediaSessionPosition();
+    });
+
+    audioEl.addEventListener("seeked", () => {
+      if (this.isResetting || audioEl !== this.audio) return;
+      this.updateMediaSessionPosition();
     });
 
     audioEl.addEventListener("waiting", () => {
@@ -292,6 +343,9 @@ export class PlayerRuntime {
       if (this.isResetting || audioEl !== this.audio) return;
       log("green", "audio", "playing");
       this.applyPlaybackRateAndPitch();
+      this.registerMediaSessionHandlers();
+      this.updateMediaSessionPlaybackState("playing");
+      this.updateMediaSessionPosition();
 
       if (this.stallStartTime !== null) {
         const stallDurationMs = Math.round(performance.now() - this.stallStartTime);
@@ -314,6 +368,8 @@ export class PlayerRuntime {
     audioEl.addEventListener("pause", () => {
       if (this.isResetting || audioEl !== this.audio) return;
       log("cyan", "audio", "paused");
+      this.updateMediaSessionPlaybackState("paused");
+      this.updateMediaSessionPosition();
       const st = usePlayerStore.getState().status;
       if (st === "playing") {
         usePlayerStore.getState().setStatus("paused");
