@@ -321,7 +321,7 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
                     {t("settings.customization.opacity_desc") || "Background opacity level (min. 25%)"}
                   </span>
                 </div>
-                <div className="w-[190px] shrink-0">
+                <div className="w-[150px] md:w-[190px] shrink-0">
                   <Slider
                     value={currentBlockConfig.opacity}
                     onChange={(val) => setBlockConfig(activeBlock, { opacity: val })}
@@ -343,7 +343,7 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
                     {t("settings.customization.blur_desc") || "Frosted glass blur intensity"}
                   </span>
                 </div>
-                <div className="w-[190px] shrink-0">
+                <div className="w-[150px] md:w-[190px] shrink-0">
                   <Slider
                     value={currentBlockConfig.blur}
                     onChange={(val) => setBlockConfig(activeBlock, { blur: val })}
@@ -365,7 +365,7 @@ export function CustomizationTab({ searchQuery }: { searchQuery?: string }) {
                     {t("settings.customization.dim_desc") || "Dark overlay for enhanced readability"}
                   </span>
                 </div>
-                <div className="w-[190px] shrink-0">
+                <div className="w-[150px] md:w-[190px] shrink-0">
                   <Slider
                     value={currentBlockConfig.dim}
                     onChange={(val) => setBlockConfig(activeBlock, { dim: val })}

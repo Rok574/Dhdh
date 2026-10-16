@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { CloseLine, Search2Line, CloseCircleFill, ExitLine } from "@mingcute/react";
+import { CloseLine, Search2Line, CloseCircleFill, ExitLine, ArrowLeftLine, RightLine } from "@mingcute/react";
 import {
   Play,
   Palette,
@@ -18,6 +18,7 @@ import { UserAvatar } from "@/shared/ui";
 import { useTranslation, getTranslationsForAllLocales } from "@/languages";
 import { useModalStore } from "@/features/library";
 import { useAuthStore } from "@/features/auth";
+import { useIsMobile } from "@/shared/hooks";
 import {
   PlaybackTab,
   AppearanceTab,
@@ -90,12 +91,21 @@ export default function SettingsModal() {
   const open = useModalStore((state) => state.settingsOpen);
   const close = useModalStore((state) => state.closeSettings);
 
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<TabId>("Playback");
   const [searchQuery, setSearchQuery] = useState("");
+  // phones show one pane at a time: the list of sections, then a section
+  const [mobileView, setMobileView] = useState<"menu" | "detail">("menu");
 
   const handleClose = () => {
     setSearchQuery("");
+    setMobileView("menu");
     close();
+  };
+
+  const selectTab = (id: TabId) => {
+    setActiveTab(id);
+    if (isMobile) setMobileView("detail");
   };
 
   const tabLabels: Record<TabId, string> = {
@@ -168,13 +178,16 @@ export default function SettingsModal() {
   }, [searchQuery]);
 
   const filteredGroups = useMemo(() => {
-    if (!matchingTabIds) return TAB_GROUPS;
-
     return TAB_GROUPS.map((group) => {
-      const ids = group.ids.filter((id) => matchingTabIds.has(id));
+      const ids = group.ids.filter(
+        (id) =>
+          // the overlay is a desktop-only window, nothing to configure on phones
+          !(isMobile && id === "Overlay") &&
+          (!matchingTabIds || matchingTabIds.has(id)),
+      );
       return { ...group, ids };
     }).filter((group) => group.ids.length > 0);
-  }, [matchingTabIds]);
+  }, [matchingTabIds, isMobile]);
 
   useEffect(() => {
     if (!searchQuery.trim()) return;
@@ -203,11 +216,38 @@ export default function SettingsModal() {
     <Dialog
       open={open}
       onOpenChange={(next) => (!next ? handleClose() : undefined)}
-      maxWidth={880}
-      className="p-0 h-[620px] max-h-[86vh] !flex-row overflow-hidden !bg-bg-elevated !border-0"
+      maxWidth={isMobile ? "100%" : 880}
+      className={
+        isMobile
+          ? "p-0 h-full !mx-0 !max-h-none !rounded-none !flex-col overflow-hidden !bg-bg-elevated !border-0 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+          : "p-0 h-[620px] max-h-[86vh] !flex-row overflow-hidden !bg-bg-elevated !border-0"
+      }
     >
-      <aside className="w-[248px] shrink-0 flex flex-col min-h-0 bg-transparent">
-        <div className="px-[12px] pt-[14px] pb-[8px]">
+      {(!isMobile || mobileView === "menu") && (
+      <aside
+        className={`${
+          isMobile ? "w-full flex-1" : "w-[248px] shrink-0"
+        } flex flex-col min-h-0 bg-transparent`}
+      >
+        {isMobile && (
+          <div className="flex items-center justify-between px-[16px] pt-[14px] pb-[2px] shrink-0">
+            <h3
+              className="text-text-primary text-[22px] m-0 font-[600] tracking-[-0.01em]"
+              style={font}
+            >
+              {t("settings.title")}
+            </h3>
+            <button
+              type="button"
+              aria-label={t("common.close") || "Close"}
+              onClick={handleClose}
+              className="w-[36px] h-[36px] shrink-0 inline-flex items-center justify-center rounded-full text-text-secondary bg-border-alpha-14 active:opacity-70 border-0 p-0 cursor-pointer"
+            >
+              <CloseLine size={18} />
+            </button>
+          </div>
+        )}
+        <div className={`${isMobile ? "px-[16px] pt-[10px]" : "px-[12px] pt-[14px]"} pb-[8px]`}>
           <div className="relative flex items-center">
             <Search2Line
               size={15}
@@ -218,7 +258,7 @@ export default function SettingsModal() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("settings.search_placeholder")}
-              className="w-full h-[32px] pl-[30px] pr-[26px] bg-border-alpha-14 text-text-primary text-[13px] rounded-[8px] border-0 outline-none placeholder:text-text-tertiary focus:bg-border-alpha-20 transition-colors"
+              className={`w-full ${isMobile ? "h-[40px] text-[16px]" : "h-[32px] text-[13px]"} pl-[30px] pr-[26px] bg-border-alpha-14 text-text-primary rounded-[8px] border-0 outline-none placeholder:text-text-tertiary focus:bg-border-alpha-20 transition-colors`}
               style={font}
             />
             {searchQuery && (
@@ -234,7 +274,7 @@ export default function SettingsModal() {
         </div>
 
         <nav
-          className="flex-1 min-h-0 overflow-y-auto px-[12px] pb-[12px] flex flex-col gap-[14px]"
+          className={`flex-1 min-h-0 overflow-y-auto ${isMobile ? "px-[16px]" : "px-[12px]"} pb-[12px] flex flex-col gap-[14px]`}
           role="tablist"
           aria-label={t("settings.title")}
         >
@@ -260,20 +300,27 @@ export default function SettingsModal() {
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => setActiveTab(id)}
-                    className={`w-full flex items-center gap-[10px] px-[10px] py-[8px] rounded-[8px] border-0 cursor-pointer text-left transition-colors ${
-                      isActive
+                    onClick={() => selectTab(id)}
+                    className={`w-full flex items-center gap-[10px] px-[10px] ${
+                      isMobile ? "py-[13px]" : "py-[8px]"
+                    } rounded-[8px] border-0 cursor-pointer text-left transition-colors ${
+                      isActive && !isMobile
                         ? "bg-border-alpha-14 text-text-primary"
-                        : "bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary"
+                        : "bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary active:bg-border-alpha-14"
                     }`}
-                    style={{ ...font, fontSize: "13.5px", fontWeight: isActive ? 500 : 400 }}
+                    style={{
+                      ...font,
+                      fontSize: isMobile ? "16px" : "13.5px",
+                      fontWeight: isActive && !isMobile ? 500 : 400,
+                    }}
                   >
                     <Icon
-                      size={18}
+                      size={isMobile ? 22 : 18}
                       weight="Bold"
-                      className={isActive ? "text-text-primary shrink-0" : "text-text-tertiary shrink-0"}
+                      className={isActive && !isMobile ? "text-text-primary shrink-0" : "text-text-tertiary shrink-0"}
                     />
-                    <span className="truncate leading-none">{tabLabels[id]}</span>
+                    <span className="truncate leading-none flex-1">{tabLabels[id]}</span>
+                    {isMobile && <RightLine size={18} className="text-text-tertiary shrink-0" />}
                   </button>
                 );
               })}
@@ -290,8 +337,8 @@ export default function SettingsModal() {
             <button
               type="button"
               onClick={() => openExternal("https://github.com/tryliner/desktop/blob/main/README.md")}
-              className="w-full flex items-center gap-[10px] px-[10px] py-[8px] rounded-[8px] border-0 bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary cursor-pointer text-left transition-colors"
-              style={{ ...font, fontSize: "13.5px" }}
+              className={`w-full flex items-center gap-[10px] px-[10px] ${isMobile ? "py-[13px]" : "py-[8px]"} rounded-[8px] border-0 bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary active:bg-border-alpha-14 cursor-pointer text-left transition-colors`}
+              style={{ ...font, fontSize: isMobile ? "16px" : "13.5px" }}
             >
               <Book2 size={18} weight="Bold" className="text-text-tertiary shrink-0" />
               <span className="leading-none">{t("settings.docs")}</span>
@@ -299,8 +346,8 @@ export default function SettingsModal() {
             <button
               type="button"
               onClick={() => openExternal("https://t.me/liner_app?direct")}
-              className="w-full flex items-center gap-[10px] px-[10px] py-[8px] rounded-[8px] border-0 bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary cursor-pointer text-left transition-colors"
-              style={{ ...font, fontSize: "13.5px" }}
+              className={`w-full flex items-center gap-[10px] px-[10px] ${isMobile ? "py-[13px]" : "py-[8px]"} rounded-[8px] border-0 bg-transparent text-text-secondary hover:bg-border-alpha-14 hover:text-text-primary active:bg-border-alpha-14 cursor-pointer text-left transition-colors`}
+              style={{ ...font, fontSize: isMobile ? "16px" : "13.5px" }}
             >
               <QuestionCircle size={18} weight="Bold" className="text-text-tertiary shrink-0" />
               <span className="leading-none">{t("settings.support")}</span>
@@ -343,12 +390,32 @@ export default function SettingsModal() {
           </div>
         </div>
       </aside>
+      )}
 
       {/* ── Right secondary frame: same roundness, inset with padding, darker ── */}
-      <div className="flex-1 min-w-0 min-h-0 p-[2px] flex">
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col rounded-xl bg-bg-primary overflow-hidden">
-        <div className="flex items-start justify-between gap-[16px] px-[24px] pt-[20px] pb-[10px] shrink-0">
-          <div className="min-w-0">
+      {(!isMobile || mobileView === "detail") && (
+      <div className={`flex-1 min-w-0 min-h-0 ${isMobile ? "" : "p-[2px]"} flex`}>
+        <div
+          className={`flex-1 min-w-0 min-h-0 flex flex-col ${
+            isMobile ? "" : "rounded-xl"
+          } bg-bg-primary overflow-hidden`}
+        >
+        <div
+          className={`flex items-start justify-between gap-[16px] ${
+            isMobile ? "px-[12px] pt-[12px]" : "px-[24px] pt-[20px]"
+          } pb-[10px] shrink-0`}
+        >
+          {isMobile && (
+            <button
+              type="button"
+              aria-label={t("common.back") || "Back"}
+              onClick={() => setMobileView("menu")}
+              className="w-[36px] h-[36px] shrink-0 inline-flex items-center justify-center rounded-full text-text-primary bg-border-alpha-14 active:opacity-70 border-0 p-0 cursor-pointer"
+            >
+              <ArrowLeftLine size={18} />
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
             <h3
               className="text-text-primary text-[15px] m-0 font-[600] tracking-[-0.01em]"
               style={font}
@@ -366,13 +433,17 @@ export default function SettingsModal() {
             type="button"
             aria-label={t("common.close") || "Close"}
             onClick={handleClose}
-            className="w-[28px] h-[28px] shrink-0 inline-flex items-center justify-center rounded-md text-text-tertiary hover:text-text-primary hover:bg-border-alpha-14 transition-colors border-0 bg-transparent p-0 cursor-pointer"
+            className={`${isMobile ? "hidden" : "inline-flex"} w-[28px] h-[28px] shrink-0 items-center justify-center rounded-md text-text-tertiary hover:text-text-primary hover:bg-border-alpha-14 transition-colors border-0 bg-transparent p-0 cursor-pointer`}
           >
             <CloseLine size={17} />
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-[24px] pb-[16px] flex flex-col">
+        <div
+          className={`flex-1 min-h-0 overflow-y-auto ${
+            isMobile ? "px-[16px]" : "px-[24px]"
+          } pb-[16px] flex flex-col`}
+        >
           <motion.div
             key={activeTab}
             initial={{ opacity: 0 }}
@@ -392,6 +463,7 @@ export default function SettingsModal() {
         </div>
         </div>
       </div>
+      )}
     </Dialog>
   );
 }

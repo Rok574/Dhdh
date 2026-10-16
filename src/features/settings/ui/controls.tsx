@@ -36,8 +36,8 @@ export function SettingRow({
   }
 
   return (
-    <div className="flex items-center justify-between gap-[16px] py-[13px]">
-      <div className="flex min-w-0 max-w-[360px] flex-col gap-[2px]">
+    <div className="flex flex-wrap items-center justify-between gap-x-[16px] gap-y-[8px] py-[13px]">
+      <div className="flex min-w-0 max-w-[360px] flex-1 basis-[160px] flex-col gap-[2px]">
         <span
           className="text-text-primary text-[13px] font-[500] leading-snug"
           style={font}
@@ -53,7 +53,7 @@ export function SettingRow({
           </span>
         ) : null}
       </div>
-      {control ? <div className="shrink-0">{control}</div> : null}
+      {control ? <div className="shrink-0 max-w-full">{control}</div> : null}
     </div>
   );
 }
