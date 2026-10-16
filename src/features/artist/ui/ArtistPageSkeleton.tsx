@@ -43,11 +43,11 @@ function ArtistPageSkeleton({ className = "" }: ArtistPageSkeletonProps) {
       >
 
 
-        <div className="relative z-10 h-[56px] flex items-center px-[32px]">
+        <div className="relative z-10 h-[56px] flex items-center px-4 md:px-[32px]">
           <div className="skeleton-shimmer h-[32px] w-[64px] rounded-md" />
         </div>
 
-        <div className="relative z-10 px-[32px] pb-[16px] flex flex-col md:flex-row md:items-end justify-between gap-[24px]">
+        <div className="relative z-10 px-4 md:px-[32px] pb-[16px] flex flex-col md:flex-row md:items-end justify-between gap-[24px]">
           <div className="flex flex-col">
             <div className="skeleton-shimmer h-[36px] md:h-[44px] w-[260px] md:w-[320px] rounded-[8px]" />
             <div className="skeleton-shimmer h-[14px] w-[140px] rounded-[4px] mt-[10px]" />
@@ -70,7 +70,7 @@ function ArtistPageSkeleton({ className = "" }: ArtistPageSkeletonProps) {
         </div>
       </div>
 
-      <div className="relative z-10 px-[32px] pt-[24px]">
+      <div className="relative z-10 px-4 md:px-[32px] pt-[24px]">
         <div className="flex flex-col gap-[40px]">
           <section>
             <div className="skeleton-shimmer h-[22px] w-[160px] rounded-[5px] mb-[16px]" />

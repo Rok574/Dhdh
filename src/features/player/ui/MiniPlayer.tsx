@@ -37,6 +37,7 @@ import { useCoverReady, CoverImage } from "@/features/covers";
 import { useCustomizationStore, getBlockStyle } from "@/features/settings";
 import ExplicitBadge from "@/shared/ui/ExplicitBadge";
 import { ArtistLink } from "@/features/artist";
+import { useIsMobile } from "@/shared/hooks";
 
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
@@ -198,6 +199,7 @@ function MiniPlayer({
   embedded = false,
 }: MiniPlayerProps) {
   const player = usePlayerState();
+  const isMobile = useIsMobile();
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const isLight =
@@ -508,6 +510,121 @@ function MiniPlayer({
 
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
   const activeProgress = scrubRatio !== null ? scrubRatio : progress;
+
+  // phone layout: one compact row (cover, title/artist, like, play/pause, next).
+  // tapping the row opens the fullscreen player; progress is the background fill.
+  if (isMobile && embedded) {
+    return (
+      <div
+        ref={miniPlayerRootRef}
+        className="relative h-[58px] w-full select-none"
+      >
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Open player"
+          onClick={(e) => {
+            if ((e.target as Element).closest("button")) return;
+            onFullscreenOpen?.();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onFullscreenOpen?.();
+            }
+          }}
+          className={`relative h-full w-full overflow-hidden rounded-xl cursor-pointer ${
+            hasCustomBg ? "" : "bg-bg-primary"
+          }`}
+          style={miniplayerCustomStyle}
+        >
+          <div
+            className="absolute inset-y-0 left-0 z-0 pointer-events-none"
+            style={{
+              backgroundColor: accentColor,
+              width: `${activeProgress * 100}%`,
+              transition: "width 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          />
+          <div className="relative z-10 flex h-full items-center gap-[10px] pl-[10px] pr-[4px]">
+            <div
+              className={`relative h-[40px] w-[40px] shrink-0 overflow-hidden rounded-[8px] bg-bg-elevated ${
+                coverUrl && !isCoverLoaded ? "animate-pulse" : ""
+              }`}
+            >
+              <CoverImage
+                key={coverUrl}
+                src={coverUrl}
+                alt="Track artwork"
+                width={40}
+                height={40}
+                priority
+                draggable={false}
+                onLoad={(e) => {
+                  extractAccentColor(e.currentTarget as HTMLImageElement);
+                }}
+                className="h-[40px] w-[40px] object-cover rounded-[8px]"
+              />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <p
+                className="m-0 truncate text-[15px] font-[500] leading-[18px] text-text-primary"
+                style={{ fontFamily: "var(--font-inter), sans-serif" }}
+              >
+                {trackTitle}
+              </p>
+              <p
+                className="m-0 mt-[2px] flex min-w-0 items-center gap-[5px] text-[12.5px] font-[300] leading-[15px] text-text-tertiary"
+                style={{ fontFamily: "var(--font-inter), sans-serif" }}
+              >
+                {player.currentTrack?.explicit && <ExplicitBadge />}
+                <span className="truncate">{trackArtists}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={isLiked ? "Unlike" : "Like"}
+              className={`inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center border-none bg-transparent active:scale-[0.92] transition-transform ${
+                isLiked ? "text-accent-primary" : "text-text-secondary"
+              }`}
+              onClick={handleLikeToggle}
+            >
+              {isLiked ? <HeartFill size={22} /> : <HeartLine size={22} />}
+            </button>
+            <button
+              type="button"
+              aria-label={isPlaying ? "Pause" : "Play"}
+              className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-none bg-btn-primary-bg text-btn-primary-text active:scale-[0.94] transition-transform"
+              onClick={() => {
+                void playerEngine.togglePlayPause();
+              }}
+            >
+              {isLoading ? (
+                <span
+                  className="h-[16px] w-[16px] animate-spin rounded-full border-[2px] border-current border-t-transparent"
+                  aria-label="Loading playback"
+                />
+              ) : isPlaying ? (
+                <Pause size={18} weight="Bold" />
+              ) : (
+                <Play size={18} weight="Bold" className="translate-x-[0.5px]" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Next track"
+              className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center border-none bg-transparent text-text-primary active:scale-[0.92] transition-transform"
+              onClick={() => {
+                void playerEngine.skipNext();
+              }}
+            >
+              <SkipNext size={22} weight="Bold" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

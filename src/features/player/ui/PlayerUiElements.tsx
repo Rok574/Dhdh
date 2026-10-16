@@ -23,11 +23,15 @@ import { VolumePicker } from "./VolumePicker";
 import { TimelineSlider } from "./TimelineSlider";
 
 import { useTranslation } from "@/languages";
+import { useIsMobile } from "@/shared/hooks";
 
 const iconButtonClass =
   "inline-flex h-[28px] w-[28px] items-center justify-center text-white opacity-70 transition-all duration-150 ease-out hover:opacity-100 active:scale-[0.94] shrink-0 border-none bg-transparent cursor-pointer";
 
-function PlayPauseIcon({ status }: { status: string }) {
+const mobileIconButtonClass =
+  "inline-flex h-[44px] w-[44px] items-center justify-center text-white opacity-70 transition-all duration-150 ease-out active:scale-[0.92] shrink-0 border-none bg-transparent cursor-pointer";
+
+function PlayPauseIcon({ status, size = 22 }: { status: string; size?: number }) {
   if (status === "loading") {
     return (
       <span
@@ -37,9 +41,9 @@ function PlayPauseIcon({ status }: { status: string }) {
     );
   }
   return status === "playing" ? (
-    <Pause weight="Bold" size={22} />
+    <Pause weight="Bold" size={size} />
   ) : (
-    <Play weight="Bold" size={22} className="translate-x-[1px]" />
+    <Play weight="Bold" size={size} className="translate-x-[1px]" />
   );
 }
 
@@ -53,6 +57,8 @@ export function PlayerUiElements({
   onClose,
 }: PlayerUiElementsProps) {
   const player = usePlayerState();
+  const isMobile = useIsMobile();
+  const btnClass = isMobile ? mobileIconButtonClass : iconButtonClass;
 
   const track = player.currentTrack;
   const coverUrl = track?.coverUrl || "";
@@ -85,7 +91,9 @@ export function PlayerUiElements({
     <>
       {/* Artwork (Compact, flat, no drop shadows) */}
       <div
-        className={`relative shrink-0 overflow-hidden rounded-xl w-[280px] h-[280px] bg-black/20 ${
+        className={`relative shrink-0 overflow-hidden rounded-xl bg-black/20 ${
+          isMobile ? "w-[min(78vw,340px)] aspect-square" : "w-[280px] h-[280px]"
+        } ${
           coverUrl && !isCoverLoaded ? "animate-pulse" : ""
         }`}
       >
@@ -104,7 +112,7 @@ export function PlayerUiElements({
                 src={coverUrl}
                 alt={trackTitle}
                 fill
-                sizes="280px"
+                sizes={isMobile ? "340px" : "280px"}
                 priority
                 unoptimized
                 className="rounded-xl object-cover"
@@ -125,7 +133,7 @@ export function PlayerUiElements({
           <button
             type="button"
             aria-label={isLiked ? t("common.unlike") : t("common.like")}
-            className={`relative inline-flex h-[30px] w-[30px] items-center justify-center rounded-full transition-all duration-200 ease-out active:scale-[0.92] bg-black/40 backdrop-blur-md border-none ${
+            className={`relative inline-flex ${isMobile ? "h-[38px] w-[38px]" : "h-[30px] w-[30px]"} items-center justify-center rounded-full transition-all duration-200 ease-out active:scale-[0.92] bg-black/40 backdrop-blur-md border-none ${
               isLiked
                 ? "text-white hover:bg-black/60"
                 : "text-white/70 hover:text-white hover:bg-black/60"
@@ -162,15 +170,23 @@ export function PlayerUiElements({
       </div>
 
       {/* Track info */}
-      <div className="w-[280px] flex items-start justify-center min-w-0">
+      <div
+        className={`${
+          isMobile ? "w-full max-w-[340px] px-1" : "w-[280px]"
+        } flex items-start justify-center min-w-0`}
+      >
         <div className="flex flex-col gap-[2px] min-w-0 text-center">
           <p
-            className="m-0 text-[15px] font-[600] text-white flex items-center justify-center gap-[6px] max-w-[280px]"
+            className={`m-0 ${
+              isMobile ? "text-[22px] max-w-full" : "text-[15px] max-w-[280px]"
+            } font-[600] text-white flex items-center justify-center gap-[6px]`}
             style={{ letterSpacing: "-0.03em" }}
           >
             <span className="min-w-0 truncate">{trackTitle}</span>
           </p>
-          <p className="m-0 flex items-center justify-center gap-[5px] text-[12px] text-white/60 leading-snug max-w-[320px] overflow-hidden">
+          <p className={`m-0 flex items-center justify-center gap-[5px] ${
+              isMobile ? "text-[15px] max-w-full" : "text-[12px] max-w-[320px]"
+            } text-white/60 leading-snug overflow-hidden`}>
             {track?.explicit && (
               <ExplicitBadge className="!bg-white/60 !text-black !pb-0 !leading-none shrink-0" />
             )}
@@ -196,17 +212,17 @@ export function PlayerUiElements({
         onSeek={(pos) => playerEngine.seek(pos)}
         showTime
         size="md"
-        className="w-[320px]"
+        className={isMobile ? "w-full max-w-[340px]" : "w-[320px]"}
       />
 
       {/* Primary Playback Controls */}
-      <div className="flex items-center gap-[14px]">
+      <div className={`flex items-center ${isMobile ? "gap-[10px]" : "gap-[14px]"}`}>
         <button
           type="button"
           aria-label="Shuffle"
           title={player.shuffle ? t("player.shuffle_on") : t("player.shuffle_off")}
           onClick={() => playerEngine.setShuffle(!player.shuffle)}
-          className={`${iconButtonClass} ${
+          className={`${btnClass} ${
             player.shuffle ? "!text-white !opacity-100" : "!text-white/40"
           }`}
         >
@@ -217,27 +233,27 @@ export function PlayerUiElements({
           type="button"
           aria-label="Previous track"
           onClick={() => void playerEngine.skipPrevious()}
-          className={iconButtonClass}
+          className={btnClass}
         >
-          <SkipPrevious size={20} weight="Bold" />
+          <SkipPrevious size={isMobile ? 28 : 20} weight="Bold" />
         </button>
 
         <button
           type="button"
           aria-label={player.status === "playing" ? "Pause" : "Play"}
           onClick={() => void playerEngine.togglePlayPause()}
-          className="inline-flex h-[36px] w-[36px] items-center justify-center text-white opacity-85 transition-all duration-150 ease-out hover:opacity-100 active:scale-[0.94] shrink-0 border-none bg-transparent cursor-pointer"
+          className={`inline-flex ${isMobile ? "h-[60px] w-[60px]" : "h-[36px] w-[36px]"} items-center justify-center text-white opacity-85 transition-all duration-150 ease-out hover:opacity-100 active:scale-[0.94] shrink-0 border-none bg-transparent cursor-pointer`}
         >
-          <PlayPauseIcon status={player.status} />
+          <PlayPauseIcon status={player.status} size={isMobile ? 36 : 22} />
         </button>
 
         <button
           type="button"
           aria-label="Next track"
           onClick={() => void playerEngine.skipNext()}
-          className={iconButtonClass}
+          className={btnClass}
         >
-          <SkipNext size={20} weight="Bold" />
+          <SkipNext size={isMobile ? 28 : 20} weight="Bold" />
         </button>
 
         <button
@@ -252,7 +268,7 @@ export function PlayerUiElements({
                   : "off",
             )
           }
-          className={`${iconButtonClass} ${
+          className={`${btnClass} ${
             player.repeat !== "off" ? "!text-white !opacity-100" : "!text-white/40"
           }`}
         >
@@ -265,7 +281,10 @@ export function PlayerUiElements({
       </div>
 
       {/* Volume (Compact smooth slider, size sm) */}
-      <VolumePicker className="w-[180px]" size="sm" />
+      <VolumePicker
+        className={isMobile ? "w-full max-w-[260px]" : "w-[180px]"}
+        size="sm"
+      />
     </>
   );
 }
