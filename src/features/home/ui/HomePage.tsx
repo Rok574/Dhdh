@@ -15,6 +15,8 @@ import { playerEngine } from "@/features/player";
 import SongCard from "@/features/player/ui/SongCard";
 import SongCardWithMenu from "@/features/player/ui/SongCardWithMenu";
 import { useTranslation } from "@/languages";
+import { useIsMobile } from "@/shared/hooks";
+import BrandLogo from "@/features/navigation/ui/BrandLogo";
 import { useIsContentTransparent } from "@/features/settings/store/customizationStore";
 import {
   FireFill,
@@ -28,6 +30,7 @@ import {
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const hasCustomBg = useIsContentTransparent();
   const { data: likedData, isLoading: likedLoading } = useLikedTracks();
@@ -109,6 +112,11 @@ export default function HomePage() {
         {/* Real Content Layer */}
         {isReady && (
           <div className="col-start-1 row-start-1 w-full pb-[16px]">
+            {isMobile && (
+              <div className="px-4 pt-[14px] flex items-center">
+                <BrandLogo size={30} />
+              </div>
+            )}
             {hasEnoughQuickData && (
               <div className="flex flex-col">
               <div className="mt-[20px] px-4 md:px-8 flex items-center justify-between">
