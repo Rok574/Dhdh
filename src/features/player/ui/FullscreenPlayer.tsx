@@ -14,8 +14,9 @@ import {
   braccatoThemeCss,
   hasSyncedLyricsSources,
 } from "@/features/lyrics";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
+import { MobilePlayerView, type MobilePlayerTab } from "./MobilePlayerView";
 import { DownLine } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import "@braccato/core/element";
@@ -290,19 +291,22 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
 export interface FullscreenPlayerProps {
   effectsReady?: boolean;
   onClose: () => void;
+  // phones: opens the queue (closes the player first)
+  onOpenQueue?: () => void;
 }
 
 export function FullscreenPlayer({
   effectsReady = true,
   onClose,
+  onOpenQueue,
 }: FullscreenPlayerProps) {
   const { t } = useTranslation();
   const player = usePlayerState();
   const isMobile = useIsMobile();
   // on phones the two desktop columns (player | lyrics) become two views
-  const [mobileView, setMobileView] = useState<"player" | "lyrics">("player");
-  const showPlayerCol = !isMobile || mobileView === "player";
-  const showLyricsCol = !isMobile || mobileView === "lyrics";
+  const [mobileView, setMobileView] = useState<MobilePlayerTab>("player");
+  // swipe down on the grabber / header to dismiss the player
+  const dragControls = useDragControls();
   const coverUrl = player.currentTrack?.coverUrl;
   const kawarpSrc = useCoverSrc(coverUrl);
 
@@ -350,54 +354,8 @@ export function FullscreenPlayer({
     !lyricsError &&
     plainLyrics === "[INSTRUMENTAL]";
 
-  return (
-    <div
-      data-theme="dark"
-      className="dark relative h-full w-full overflow-hidden bg-black text-white"
-    >
-      <div className="absolute inset-0 overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0"
-          style={{ backgroundColor: "var(--color-bg-primary)" }}
-        />
-        {kawarpSrc && (
-          <div
-            className="absolute inset-0 bg-cover bg-center filter blur-3xl scale-110 opacity-70 pointer-events-none"
-            style={{ backgroundImage: `url(${kawarpSrc})` }}
-          />
-        )}
-        {effectsReady ? (
-          <KawarpWrapper src={kawarpSrc} onError={onError} />
-        ) : null}
-      </div>
-
-      <div className="absolute inset-0 z-[1] bg-black/40" />
-
-      <div
-        className={`absolute inset-0 z-10 flex ${
-          isMobile ? "flex-col pt-[56px]" : ""
-        }`}
-      >
-        {showPlayerCol && (
-          <div
-            className={
-              isMobile
-                ? "flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
-                : "flex-1 flex flex-col items-center justify-center gap-5"
-            }
-          >
-            {isMobile ? (
-              <div className="m-auto flex flex-col items-center gap-5 py-4 w-full">
-                <PlayerUiElements onClose={onClose} />
-              </div>
-            ) : (
-              <PlayerUiElements onClose={onClose} />
-            )}
-          </div>
-        )}
-
-        {showLyricsCol && (
+  // lyrics column (provider island + lyrics / loading / empty states)
+  const lyricsColumn = (
         <div
           className={`flex-1 h-full min-h-0 flex flex-col relative ${
             isMobile ? "px-1" : "pl-2 pr-6"
@@ -506,44 +464,72 @@ export function FullscreenPlayer({
             ) : null}
           </AnimatePresence>
         </div>
+  );
+
+  return (
+    <motion.div
+      data-theme="dark"
+      className="dark relative h-full w-full overflow-hidden bg-black text-white"
+      drag={isMobile ? "y" : false}
+      dragControls={dragControls}
+      dragListener={false}
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0, bottom: 0.7 }}
+      dragSnapToOrigin
+      onDragEnd={(_, info) => {
+        if (info.offset.y > 110 || info.velocity.y > 700) onClose();
+      }}
+    >
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{ backgroundColor: "var(--color-bg-primary)" }}
+        />
+        {kawarpSrc && (
+          <div
+            className="absolute inset-0 bg-cover bg-center filter blur-3xl scale-110 opacity-70 pointer-events-none"
+            style={{ backgroundImage: `url(${kawarpSrc})` }}
+          />
         )}
+        {effectsReady ? (
+          <KawarpWrapper src={kawarpSrc} onError={onError} />
+        ) : null}
       </div>
 
-      {isMobile && (
-        <div
-          role="tablist"
-          className="absolute top-[12px] left-1/2 -translate-x-1/2 z-30 flex h-[32px] items-center rounded-lg bg-black/50 p-[3px] backdrop-blur-xl"
-        >
-          {(["player", "lyrics"] as const).map((view) => (
-            <button
-              key={view}
-              type="button"
-              role="tab"
-              aria-selected={mobileView === view}
-              onClick={() => setMobileView(view)}
-              className={`h-full rounded-[6px] border-none px-[12px] text-[13px] font-[500] cursor-pointer transition-colors ${
-                mobileView === view
-                  ? "bg-white/20 text-white"
-                  : "bg-transparent text-white/60"
-              }`}
-            >
-              {view === "player" ? t("player.now_playing") : t("player.lyrics")}
-            </button>
-          ))}
+      <div className="absolute inset-0 z-[1] bg-black/40" />
+
+      {isMobile ? (
+        <MobilePlayerView
+          view={mobileView}
+          onViewChange={setMobileView}
+          onClose={onClose}
+          onOpenQueue={onOpenQueue}
+          onHeaderPointerDown={(e) => dragControls.start(e)}
+          lyricsPane={lyricsColumn}
+        />
+      ) : (
+        <div className="absolute inset-0 z-10 flex">
+          <div className="flex-1 flex flex-col items-center justify-center gap-5">
+            <PlayerUiElements onClose={onClose} />
+          </div>
+          {lyricsColumn}
         </div>
       )}
 
-      <button
-        type="button"
-        aria-label={t("player.close_fullscreen")}
-        title={t("player.close_fullscreen") || "Close"}
-        onClick={onClose}
-        data-no-window-drag
-        className="absolute top-[12px] left-[12px] z-30 inline-flex h-[32px] w-[32px] items-center justify-center rounded-lg border-none bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-white/10 active:scale-[0.94] transition-all cursor-pointer select-none pointer-events-auto"
-      >
-        <DownLine size={18} />
-      </button>
-    </div>
+      {!isMobile && (
+        <button
+          type="button"
+          aria-label={t("player.close_fullscreen")}
+          title={t("player.close_fullscreen") || "Close"}
+          onClick={onClose}
+          data-no-window-drag
+          className="absolute top-[12px] left-[12px] z-30 inline-flex h-[32px] w-[32px] items-center justify-center rounded-lg border-none bg-black/50 backdrop-blur-xl text-white/80 hover:text-white hover:bg-white/10 active:scale-[0.94] transition-all cursor-pointer select-none pointer-events-auto"
+        >
+          <DownLine size={18} />
+        </button>
+      )}
+    </motion.div>
   );
 }
 

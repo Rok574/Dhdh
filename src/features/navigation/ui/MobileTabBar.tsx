@@ -25,7 +25,7 @@ function MobileTabBar({ searchOpen, onSearchToggle }: MobileTabBarProps) {
   return (
     <nav
       aria-label="Primary"
-      className="flex h-[56px] w-full shrink-0 items-stretch justify-around rounded-xl bg-bg-primary"
+      className="flex h-[52px] w-full shrink-0 items-stretch justify-around"
     >
       {sidebarNavItems.map((item) => {
         const Icon = item.Icon;

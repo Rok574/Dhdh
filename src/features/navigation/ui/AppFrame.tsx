@@ -943,7 +943,11 @@ export default function AppFrame({ children }: AppFrameProps) {
     <div
       ref={appFrameRef}
       data-custom-bg={hasCustomBg ? "true" : undefined}
-      className={`relative flex ${isMobile ? "flex-col" : "flex-row"} h-full w-full overflow-hidden rounded-5xl bg-bg-canvas p-1.5 gap-1.5`}
+      className={
+        isMobile
+          ? "fixed inset-0 flex flex-col overflow-hidden bg-bg-canvas pt-[env(safe-area-inset-top,0px)]"
+          : "relative flex flex-row h-full w-full overflow-hidden rounded-5xl bg-bg-canvas p-1.5 gap-1.5"
+      }
       onScroll={(e) => {
         if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
         if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
@@ -951,7 +955,7 @@ export default function AppFrame({ children }: AppFrameProps) {
     >
       {hasCustomBg && backgroundImage && (
         <div
-          className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-5xl"
+          className={`absolute inset-0 z-0 pointer-events-none overflow-hidden ${isMobile ? "" : "rounded-5xl"}`}
           aria-hidden="true"
         >
           <img
@@ -984,14 +988,14 @@ export default function AppFrame({ children }: AppFrameProps) {
         </aside>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
+      <div className={`flex-1 flex flex-col min-w-0 relative overflow-hidden ${isMobile ? "min-h-0" : "h-full gap-1.5"}`}>
         <main
           data-custom-bg={hasCustomBg ? "true" : undefined}
           className={`flex-1 min-w-0 flex flex-col relative h-full ${
             hasCustomBg ? "" : "bg-bg-primary"
           } ${
             isMobile
-              ? "rounded-xl"
+              ? "rounded-none"
               : `rounded-sm ${
                   isFullscreenPlayer ? "rounded-tr-none" : "rounded-tr-xl"
                 }`
@@ -1055,7 +1059,7 @@ export default function AppFrame({ children }: AppFrameProps) {
         {shouldShowMiniPlayer && (
           <div
             ref={miniPlayerContainerRef}
-            className="relative z-[40] w-full shrink-0"
+            className={`relative z-[40] w-full shrink-0 ${isMobile ? "px-2 pt-1.5 pb-1.5" : ""}`}
           >
             <MiniPlayer
               embedded
@@ -1068,7 +1072,10 @@ export default function AppFrame({ children }: AppFrameProps) {
       </div>
 
       {isMobile && (
-        <div ref={sidebarRef} className="relative z-[45] w-full shrink-0">
+        <div
+          ref={sidebarRef}
+          className="relative z-[45] w-full shrink-0 border-t border-border-primary/40 bg-bg-primary/85 backdrop-blur-xl pb-[env(safe-area-inset-bottom,0px)]"
+        >
           <MobileTabBar
             searchOpen={searchOpen}
             onSearchToggle={handleSearchToggle}
@@ -1090,6 +1097,10 @@ export default function AppFrame({ children }: AppFrameProps) {
           >
             <FullscreenPlayer
               onClose={closeFullscreenPlayer}
+              onOpenQueue={() => {
+                closeFullscreenPlayer();
+                openRightPanel("queue");
+              }}
               effectsReady={fullscreenEffectsReady}
             />
           </motion.div>

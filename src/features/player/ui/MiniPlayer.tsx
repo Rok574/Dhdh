@@ -511,13 +511,13 @@ function MiniPlayer({
   const [scrubRatio, setScrubRatio] = useState<number | null>(null);
   const activeProgress = scrubRatio !== null ? scrubRatio : progress;
 
-  // phone layout: one compact row (cover, title/artist, like, play/pause, next).
-  // tapping the row opens the fullscreen player; progress is the background fill.
+  // phone layout: floating translucent capsule above the tab bar (cover,
+  // title/artist, play/pause, next). tapping it opens the fullscreen player.
   if (isMobile && embedded) {
     return (
       <div
         ref={miniPlayerRootRef}
-        className="relative h-[58px] w-full select-none"
+        className="relative h-[60px] w-full select-none"
       >
         <div
           role="button"
@@ -533,22 +533,14 @@ function MiniPlayer({
               onFullscreenOpen?.();
             }
           }}
-          className={`relative h-full w-full overflow-hidden rounded-xl cursor-pointer ${
-            hasCustomBg ? "" : "bg-bg-primary"
+          className={`relative h-full w-full overflow-hidden rounded-[18px] cursor-pointer shadow-[0_6px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.07] active:scale-[0.985] transition-transform duration-150 ${
+            hasCustomBg ? "" : "bg-bg-panel/80 backdrop-blur-2xl"
           }`}
           style={miniplayerCustomStyle}
         >
-          <div
-            className="absolute inset-y-0 left-0 z-0 pointer-events-none"
-            style={{
-              backgroundColor: accentColor,
-              width: `${activeProgress * 100}%`,
-              transition: "width 200ms cubic-bezier(0.22, 1, 0.36, 1)",
-            }}
-          />
-          <div className="relative z-10 flex h-full items-center gap-[10px] pl-[10px] pr-[4px]">
+          <div className="relative z-10 flex h-full items-center gap-[12px] pl-[8px] pr-[6px]">
             <div
-              className={`relative h-[40px] w-[40px] shrink-0 overflow-hidden rounded-[8px] bg-bg-elevated ${
+              className={`relative h-[44px] w-[44px] shrink-0 overflow-hidden rounded-[10px] bg-bg-elevated shadow-[0_2px_8px_rgba(0,0,0,0.3)] ${
                 coverUrl && !isCoverLoaded ? "animate-pulse" : ""
               }`}
             >
@@ -556,25 +548,25 @@ function MiniPlayer({
                 key={coverUrl}
                 src={coverUrl}
                 alt="Track artwork"
-                width={40}
-                height={40}
+                width={44}
+                height={44}
                 priority
                 draggable={false}
                 onLoad={(e) => {
                   extractAccentColor(e.currentTarget as HTMLImageElement);
                 }}
-                className="h-[40px] w-[40px] object-cover rounded-[8px]"
+                className="h-[44px] w-[44px] object-cover rounded-[10px]"
               />
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
               <p
-                className="m-0 truncate text-[15px] font-[500] leading-[18px] text-text-primary"
+                className="m-0 truncate text-[15px] font-[500] leading-[19px] text-text-primary"
                 style={{ fontFamily: "var(--font-inter), sans-serif" }}
               >
                 {trackTitle}
               </p>
               <p
-                className="m-0 mt-[2px] flex min-w-0 items-center gap-[5px] text-[12.5px] font-[300] leading-[15px] text-text-tertiary"
+                className="m-0 flex min-w-0 items-center gap-[5px] text-[13px] font-[400] leading-[16px] text-text-tertiary"
                 style={{ fontFamily: "var(--font-inter), sans-serif" }}
               >
                 {player.currentTrack?.explicit && <ExplicitBadge />}
@@ -583,42 +575,32 @@ function MiniPlayer({
             </div>
             <button
               type="button"
-              aria-label={isLiked ? "Unlike" : "Like"}
-              className={`inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center border-none bg-transparent active:scale-[0.92] transition-transform ${
-                isLiked ? "text-accent-primary" : "text-text-secondary"
-              }`}
-              onClick={handleLikeToggle}
-            >
-              {isLiked ? <HeartFill size={22} /> : <HeartLine size={22} />}
-            </button>
-            <button
-              type="button"
               aria-label={isPlaying ? "Pause" : "Play"}
-              className="inline-flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-none bg-btn-primary-bg text-btn-primary-text active:scale-[0.94] transition-transform"
+              className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center border-none bg-transparent text-text-primary active:scale-[0.9] transition-transform"
               onClick={() => {
                 void playerEngine.togglePlayPause();
               }}
             >
               {isLoading ? (
                 <span
-                  className="h-[16px] w-[16px] animate-spin rounded-full border-[2px] border-current border-t-transparent"
+                  className="h-[18px] w-[18px] animate-spin rounded-full border-[2px] border-current border-t-transparent"
                   aria-label="Loading playback"
                 />
               ) : isPlaying ? (
-                <Pause size={18} weight="Bold" />
+                <Pause size={26} weight="Bold" />
               ) : (
-                <Play size={18} weight="Bold" className="translate-x-[0.5px]" />
+                <Play size={26} weight="Bold" className="translate-x-[1px]" />
               )}
             </button>
             <button
               type="button"
               aria-label="Next track"
-              className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center border-none bg-transparent text-text-primary active:scale-[0.92] transition-transform"
+              className="inline-flex h-[44px] w-[40px] shrink-0 items-center justify-center border-none bg-transparent text-text-primary active:scale-[0.9] transition-transform"
               onClick={() => {
                 void playerEngine.skipNext();
               }}
             >
-              <SkipNext size={22} weight="Bold" />
+              <SkipNext size={26} weight="Bold" />
             </button>
           </div>
         </div>
