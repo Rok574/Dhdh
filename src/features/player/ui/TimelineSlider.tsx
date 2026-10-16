@@ -13,6 +13,10 @@ export interface TimelineSliderProps {
   trackActiveBg?: string;
   fillColor?: string;
   showTime?: boolean;
+  // "below" puts the elapsed / remaining times under the bar (apple music style)
+  timePlacement?: "inline" | "below";
+  // right-hand label counts down ("-1:23") instead of showing the total
+  showRemaining?: boolean;
   onScrub?: (positionMs: number) => void;
 }
 
@@ -36,6 +40,8 @@ export const TimelineSlider = memo(function TimelineSlider({
   trackActiveBg,
   fillColor,
   showTime = false,
+  timePlacement = "inline",
+  showRemaining = false,
   onScrub,
 }: TimelineSliderProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -150,18 +156,7 @@ export const TimelineSlider = memo(function TimelineSlider({
   const defaultTrackBg = trackBg ?? "rgba(255, 255, 255, 0.16)";
   const defaultTrackActiveBg = trackActiveBg ?? "rgba(255, 255, 255, 0.30)";
 
-  return (
-    <div
-      className={`group relative flex ${containerHeights} items-center select-none prevent-seek ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {showTime && (
-        <span className="text-[11px] tabular-nums text-text-tertiary w-[36px] text-right shrink-0 pr-[8px]">
-          {formatPlaybackTime(currentPosition)}
-        </span>
-      )}
-
+  const sliderEl = (
       <div
         role="slider"
         aria-label="Seek"
@@ -199,6 +194,44 @@ export const TimelineSlider = memo(function TimelineSlider({
           />
         </motion.div>
       </div>
+  );
+
+  if (showTime && timePlacement === "below") {
+    const remaining = Math.max(0, duration - currentPosition);
+    return (
+      <div
+        className={`group relative flex flex-col select-none prevent-seek ${className}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className={`flex ${containerHeights} w-full items-center`}>
+          {sliderEl}
+        </div>
+        <div className="-mt-[2px] flex items-center justify-between text-[12px] font-[500] tabular-nums text-white/55">
+          <span>{formatPlaybackTime(currentPosition)}</span>
+          <span>
+            {showRemaining
+              ? `-${formatPlaybackTime(remaining)}`
+              : formatPlaybackTime(duration)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`group relative flex ${containerHeights} items-center select-none prevent-seek ${className}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {showTime && (
+        <span className="text-[11px] tabular-nums text-text-tertiary w-[36px] text-right shrink-0 pr-[8px]">
+          {formatPlaybackTime(currentPosition)}
+        </span>
+      )}
+
+      {sliderEl}
 
       {showTime && (
         <span className="text-[11px] tabular-nums text-text-tertiary w-[36px] shrink-0 pl-[8px]">

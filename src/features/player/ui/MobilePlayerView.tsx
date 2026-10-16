@@ -11,8 +11,10 @@ import {
   MusicNote,
   ChatRoundDots,
   Playlist,
+  VolumeLoud,
 } from "@solar-icons/react";
-import { HeartFill, HeartLine } from "@mingcute/react";
+import { HeartFill, HeartLine, More2Fill } from "@mingcute/react";
+import { LuAirplay } from "react-icons/lu";
 import { usePlayerState } from "../hooks/usePlayerState";
 import { playerEngine } from "../engine/playerEngine";
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from "@/features/library/hooks";
@@ -20,16 +22,19 @@ import { ArtistLink } from "@/features/artist";
 import { useCoverReady, CoverImage } from "@/features/covers";
 import ExplicitBadge from "@/shared/ui/ExplicitBadge";
 import { useTranslation } from "@/languages";
+import DropdownMenu from "@/shared/ui/DropdownMenu";
+import { useSongMenuItems } from "../hooks/useSongMenuItems";
 import { VolumePicker } from "./VolumePicker";
 import { TimelineSlider } from "./TimelineSlider";
 
-export type MobilePlayerTab = "player" | "lyrics";
+export type MobilePlayerTab = "player" | "lyrics" | "queue";
 
 export interface MobilePlayerViewProps {
   view: MobilePlayerTab;
   onViewChange: (view: MobilePlayerTab) => void;
   onClose: () => void;
-  onOpenQueue?: () => void;
+  // renders the queue panel inside the player (the queue button is hidden without it)
+  renderQueue?: (api: { onClose: () => void; onOpenLyrics: () => void }) => ReactNode;
   // starts the swipe-down-to-dismiss drag (see FullscreenPlayer)
   onHeaderPointerDown: (e: PointerEvent) => void;
   // the lyrics column (provider island + lyrics / empty states)
@@ -53,6 +58,19 @@ function useLikeToggle(trackId: string | undefined) {
   }, [trackId, isLiked, likeMutation, unlikeMutation]);
 
   return { isLiked, toggle };
+}
+
+type AirPlayAudio = HTMLAudioElement & { webkitShowPlaybackTargetPicker?: () => void };
+
+// the native route picker only exists in webkit (ios webview / safari)
+const airPlaySupported =
+  typeof HTMLMediaElement !== "undefined" &&
+  typeof (HTMLMediaElement.prototype as AirPlayAudio).webkitShowPlaybackTargetPicker ===
+    "function";
+
+function showAirPlayPicker() {
+  const audio = document.getElementById("liner-audio") as AirPlayAudio | null;
+  audio?.webkitShowPlaybackTargetPicker?.();
 }
 
 function Transport({ compact = false }: { compact?: boolean }) {
@@ -108,11 +126,11 @@ function Transport({ compact = false }: { compact?: boolean }) {
 function ActionRow({
   view,
   onViewChange,
-  onOpenQueue,
+  canQueue,
 }: {
   view: MobilePlayerTab;
   onViewChange: (view: MobilePlayerTab) => void;
-  onOpenQueue?: () => void;
+  canQueue: boolean;
 }) {
   const player = usePlayerState();
   const { t } = useTranslation();
@@ -142,14 +160,26 @@ function ActionRow({
       >
         <ChatRoundDots size={22} weight={view === "lyrics" ? "Bold" : "Outline"} />
       </button>
-      <button
-        type="button"
-        aria-label={t("player.queue")}
-        onClick={() => onOpenQueue?.()}
-        className={`${base} ${off}`}
-      >
-        <Playlist size={22} weight="Outline" />
-      </button>
+      {airPlaySupported && (
+        <button
+          type="button"
+          aria-label="AirPlay"
+          onClick={showAirPlayPicker}
+          className={`${base} ${off}`}
+        >
+          <LuAirplay size={22} strokeWidth={1.8} />
+        </button>
+      )}
+      {canQueue && (
+        <button
+          type="button"
+          aria-label={t("player.queue")}
+          onClick={() => onViewChange("queue")}
+          className={`${base} ${off}`}
+        >
+          <Playlist size={22} weight="Outline" />
+        </button>
+      )}
       <button
         type="button"
         aria-label="Repeat"
@@ -181,11 +211,53 @@ function LikeButton({ isLiked, onToggle }: { isLiked: boolean; onToggle: () => v
   );
 }
 
+// heart + "more" menu for the current track
+function TrackActions() {
+  const player = usePlayerState();
+  const track = player.currentTrack;
+  const { t } = useTranslation();
+  const { isLiked, toggle } = useLikeToggle(track?.id);
+  const menuItems = useSongMenuItems({
+    id: track?.id,
+    title: track?.title ?? "",
+    artists: track?.artists ?? "",
+    coverUrl: track?.coverUrl ?? "",
+    durationMs: player.durationMs,
+    searchType: "track",
+  });
+
+  return (
+    // keep taps here from starting the swipe-to-dismiss drag
+    <div
+      className="flex shrink-0 items-center gap-[10px]"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <LikeButton isLiked={isLiked} onToggle={toggle} />
+      {menuItems.length > 0 && (
+        <DropdownMenu
+          trigger={
+            <button
+              type="button"
+              aria-label={t("common.more_options")}
+              className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full border-none bg-white/15 text-white active:scale-[0.9] transition-transform duration-150 cursor-pointer"
+            >
+              <More2Fill size={20} />
+            </button>
+          }
+          items={menuItems}
+          side="bottom"
+          align="end"
+        />
+      )}
+    </div>
+  );
+}
+
 export function MobilePlayerView({
   view,
   onViewChange,
   onClose,
-  onOpenQueue,
+  renderQueue,
   onHeaderPointerDown,
   lyricsPane,
 }: MobilePlayerViewProps) {
@@ -196,8 +268,6 @@ export function MobilePlayerView({
   const trackArtists = track?.artists || "";
   const isPlaying = player.status === "playing";
   const isCoverLoaded = useCoverReady(coverUrl);
-  const { isLiked, toggle } = useLikeToggle(track?.id);
-
   const artistLine = (
     <span className="flex min-w-0 items-center gap-[6px]">
       {track?.explicit && (
@@ -294,7 +364,7 @@ export function MobilePlayerView({
                 {artistLine}
               </p>
             </div>
-            <LikeButton isLiked={isLiked} onToggle={toggle} />
+            <TrackActions />
           </div>
 
           <div className="mt-[14px] shrink-0">
@@ -303,6 +373,8 @@ export function MobilePlayerView({
               durationMs={player.durationMs}
               onSeek={(pos) => playerEngine.seek(pos)}
               showTime
+              timePlacement="below"
+              showRemaining
               size="md"
               className="w-full"
             />
@@ -313,12 +385,22 @@ export function MobilePlayerView({
           </div>
 
           <div className="mt-[4px] shrink-0">
-            <VolumePicker className="w-full" size="sm" />
+            <div className="flex items-center gap-[10px]">
+              <VolumePicker className="min-w-0 flex-1" size="sm" />
+              <VolumeLoud size={18} weight="Bold" className="shrink-0 text-white/60" />
+            </div>
           </div>
 
           <div className="mt-[14px] shrink-0">
-            <ActionRow view={view} onViewChange={onViewChange} onOpenQueue={onOpenQueue} />
+            <ActionRow view={view} onViewChange={onViewChange} canQueue={Boolean(renderQueue)} />
           </div>
+        </div>
+      ) : view === "queue" ? (
+        <div className="mx-[8px] mb-[4px] min-h-0 flex-1 overflow-hidden rounded-[18px] shadow-[0_8px_40px_rgba(0,0,0,0.45)]">
+          {renderQueue?.({
+            onClose: () => onViewChange("player"),
+            onOpenLyrics: () => onViewChange("lyrics"),
+          })}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -354,7 +436,7 @@ export function MobilePlayerView({
                 {artistLine}
               </p>
             </div>
-            <LikeButton isLiked={isLiked} onToggle={toggle} />
+            <TrackActions />
           </div>
 
           {/* lyrics, fading out under the header and above the controls */}
@@ -376,6 +458,8 @@ export function MobilePlayerView({
               durationMs={player.durationMs}
               onSeek={(pos) => playerEngine.seek(pos)}
               showTime
+              timePlacement="below"
+              showRemaining
               size="md"
               className="w-full"
             />
@@ -383,7 +467,7 @@ export function MobilePlayerView({
               <Transport compact />
             </div>
             <div className="mt-[4px]">
-              <ActionRow view={view} onViewChange={onViewChange} onOpenQueue={onOpenQueue} />
+              <ActionRow view={view} onViewChange={onViewChange} canQueue={Boolean(renderQueue)} />
             </div>
           </div>
         </div>

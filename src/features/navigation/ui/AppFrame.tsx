@@ -1097,10 +1097,15 @@ export default function AppFrame({ children }: AppFrameProps) {
           >
             <FullscreenPlayer
               onClose={closeFullscreenPlayer}
-              onOpenQueue={() => {
-                closeFullscreenPlayer();
-                openRightPanel("queue");
-              }}
+              renderQueue={({ onClose, onOpenLyrics }) => (
+                <RightDrawer
+                  activeTab="queue"
+                  onTabChange={(tab) => {
+                    if (tab === "lyrics") onOpenLyrics();
+                  }}
+                  onClose={onClose}
+                />
+              )}
               effectsReady={fullscreenEffectsReady}
             />
           </motion.div>

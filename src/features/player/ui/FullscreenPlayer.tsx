@@ -16,7 +16,11 @@ import {
 } from "@/features/lyrics";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { PlayerUiElements } from "./PlayerUiElements";
-import { MobilePlayerView, type MobilePlayerTab } from "./MobilePlayerView";
+import {
+  MobilePlayerView,
+  type MobilePlayerTab,
+  type MobilePlayerViewProps,
+} from "./MobilePlayerView";
 import { DownLine } from "@mingcute/react";
 import { preloadCoverArt, useCoverSrc } from "@/features/covers";
 import "@braccato/core/element";
@@ -291,14 +295,14 @@ function BraccatoLyricsView({ lyrics }: BraccatoLyricsViewProps) {
 export interface FullscreenPlayerProps {
   effectsReady?: boolean;
   onClose: () => void;
-  // phones: opens the queue (closes the player first)
-  onOpenQueue?: () => void;
+  // phones: renders the queue panel inside the player
+  renderQueue?: MobilePlayerViewProps["renderQueue"];
 }
 
 export function FullscreenPlayer({
   effectsReady = true,
   onClose,
-  onOpenQueue,
+  renderQueue,
 }: FullscreenPlayerProps) {
   const { t } = useTranslation();
   const player = usePlayerState();
@@ -504,7 +508,7 @@ export function FullscreenPlayer({
           view={mobileView}
           onViewChange={setMobileView}
           onClose={onClose}
-          onOpenQueue={onOpenQueue}
+          renderQueue={renderQueue}
           onHeaderPointerDown={(e) => dragControls.start(e)}
           lyricsPane={lyricsColumn}
         />
