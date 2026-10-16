@@ -24,6 +24,7 @@ import "@braccato/core/styles/lyrics.css";
 import "@braccato/core/styles/instrumental.css";
 import KawarpWrapper from "./KawarpWrapper";
 import { useTranslation } from "@/languages";
+import { useIsMobile } from "@/shared/hooks";
 
 const BRACCATO_TAG = "braccato-lyrics";
 
@@ -297,6 +298,11 @@ export function FullscreenPlayer({
 }: FullscreenPlayerProps) {
   const { t } = useTranslation();
   const player = usePlayerState();
+  const isMobile = useIsMobile();
+  // on phones the two desktop columns (player | lyrics) become two views
+  const [mobileView, setMobileView] = useState<"player" | "lyrics">("player");
+  const showPlayerCol = !isMobile || mobileView === "player";
+  const showLyricsCol = !isMobile || mobileView === "lyrics";
   const coverUrl = player.currentTrack?.coverUrl;
   const kawarpSrc = useCoverSrc(coverUrl);
 
@@ -368,14 +374,41 @@ export function FullscreenPlayer({
 
       <div className="absolute inset-0 z-[1] bg-black/40" />
 
-      <div className="absolute inset-0 z-10 flex">
-        <div className="flex-1 flex flex-col items-center justify-center gap-5">
-          <PlayerUiElements onClose={onClose} />
-        </div>
+      <div
+        className={`absolute inset-0 z-10 flex ${
+          isMobile ? "flex-col pt-[56px]" : ""
+        }`}
+      >
+        {showPlayerCol && (
+          <div
+            className={
+              isMobile
+                ? "flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
+                : "flex-1 flex flex-col items-center justify-center gap-5"
+            }
+          >
+            {isMobile ? (
+              <div className="m-auto flex flex-col items-center gap-5 py-4 w-full">
+                <PlayerUiElements onClose={onClose} />
+              </div>
+            ) : (
+              <PlayerUiElements onClose={onClose} />
+            )}
+          </div>
+        )}
 
-        <div className="flex-1 h-full min-h-0 pl-2 pr-6 flex flex-col relative">
+        {showLyricsCol && (
+        <div
+          className={`flex-1 h-full min-h-0 flex flex-col relative ${
+            isMobile ? "px-1" : "pl-2 pr-6"
+          }`}
+        >
           {showProviderIsland && (
-            <div className="absolute top-[12px] left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center">
+            <div
+              className={`absolute ${
+                isMobile ? "top-[8px]" : "top-[12px]"
+              } left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center`}
+            >
               <LyricsProviderIsland />
             </div>
           )}
@@ -473,7 +506,32 @@ export function FullscreenPlayer({
             ) : null}
           </AnimatePresence>
         </div>
+        )}
       </div>
+
+      {isMobile && (
+        <div
+          role="tablist"
+          className="absolute top-[12px] left-1/2 -translate-x-1/2 z-30 flex h-[32px] items-center rounded-lg bg-black/50 p-[3px] backdrop-blur-xl"
+        >
+          {(["player", "lyrics"] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              role="tab"
+              aria-selected={mobileView === view}
+              onClick={() => setMobileView(view)}
+              className={`h-full rounded-[6px] border-none px-[12px] text-[13px] font-[500] cursor-pointer transition-colors ${
+                mobileView === view
+                  ? "bg-white/20 text-white"
+                  : "bg-transparent text-white/60"
+              }`}
+            >
+              {view === "player" ? t("player.now_playing") : t("player.lyrics")}
+            </button>
+          ))}
+        </div>
+      )}
 
       <button
         type="button"

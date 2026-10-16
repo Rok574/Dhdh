@@ -20,3 +20,5 @@ export {
   type UseListReorderReturn,
 } from "./useListReorder";
 
+
+export { useIsMobile, MOBILE_MAX_WIDTH } from "./useIsMobile";

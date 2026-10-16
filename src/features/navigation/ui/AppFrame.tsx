@@ -19,6 +19,8 @@ import {
   PlaylistFill,
 } from "@mingcute/react";
 import Sidebar from "./Sidebar";
+import MobileTabBar from "./MobileTabBar";
+import { useIsMobile } from "@/shared/hooks";
 import WindowControls from "./WindowControls";
 import PageTransition from "./PageTransition";
 import RightDrawer from "./RightDrawer";
@@ -76,6 +78,7 @@ export default function AppFrame({ children }: AppFrameProps) {
   const { pathname, search } = location;
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
 
   const searchOpen = useModalStore((state) => state.searchOpen);
   const openSearch = useModalStore((state) => state.openSearch);
@@ -679,152 +682,7 @@ export default function AppFrame({ children }: AppFrameProps) {
     [contentViewConfig, isDark, hasCustomBg],
   );
 
-  return (
-    <div
-      ref={appFrameRef}
-      data-custom-bg={hasCustomBg ? "true" : undefined}
-      className="relative flex flex-row h-full w-full overflow-hidden rounded-5xl bg-bg-canvas p-1.5 gap-1.5"
-      onScroll={(e) => {
-        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
-        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
-      }}
-    >
-      {hasCustomBg && backgroundImage && (
-        <div
-          className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-5xl"
-          aria-hidden="true"
-        >
-          <img
-            src={backgroundImage}
-            alt=""
-            className="w-full h-full object-cover select-none"
-            style={{
-              filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
-              transform: backgroundBlur > 0 ? "scale(1.05)" : undefined,
-            }}
-          />
-          {backgroundDim > 0 && (
-            <div
-              className="absolute inset-0 bg-black"
-              style={{ opacity: backgroundDim / 100 }}
-            />
-          )}
-        </div>
-      )}
-
-      <aside
-        ref={sidebarRef}
-        className="w-[58px] h-full shrink-0 z-[45] relative"
-      >
-        <Sidebar
-          searchOpen={searchOpen}
-          onSearchToggle={handleSearchToggle}
-        />
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
-        <main
-          data-custom-bg={hasCustomBg ? "true" : undefined}
-          className={`flex-1 min-w-0 flex flex-col relative h-full ${
-            hasCustomBg ? "" : "bg-bg-primary"
-          } rounded-sm ${
-            isFullscreenPlayer
-              ? "rounded-tr-none"
-              : "rounded-tr-xl"
-          } overflow-hidden`}
-          style={mainStyle}
-        >
-          <div
-            ref={mainScrollRef}
-            className={`h-full ${
-              searchOpen || isFullscreenPlayer
-                ? "overflow-hidden"
-                : "overflow-y-auto"
-            }`}
-          >
-
-            <PageTransition>
-              {isFullscreenRoute ? shellChildrenRef.current : children}
-            </PageTransition>
-          </div>
-
-          <AnimatePresence>
-            {searchOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute inset-0 bg-black/12 backdrop-blur-[2px] pointer-events-auto z-[30]"
-                onClick={() => closeSearch()}
-              />
-            )}
-          </AnimatePresence>
-
-          {!isFullscreenPlayer && (
-            <AnimatePresence initial={false}>
-              {isRightDrawerOpen && (
-                <motion.aside
-                  key="right-drawer"
-                  ref={queueDrawerRef}
-                  initial={{ x: "100%" }}
-                  animate={{ x: 0 }}
-                  exit={{ x: "100%" }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  className="pointer-events-auto absolute inset-y-0 right-0 z-[50]"
-                  // capped so the drawer fits narrow (phone) viewports
-                  style={{ width: `min(${RIGHT_DRAWER_WIDTH}px, 100%)` }}
-                >
-                  <RightDrawer
-                    activeTab={rightDrawerTab}
-                    onTabChange={setRightDrawerTab}
-                    onClose={closeRightPanel}
-                  />
-                </motion.aside>
-              )}
-            </AnimatePresence>
-          )}
-        </main>
-
-        {shouldShowMiniPlayer && (
-          <div
-            ref={miniPlayerContainerRef}
-            className="relative z-[40] w-full shrink-0"
-          >
-            <MiniPlayer
-              embedded
-              onQueueOpenChange={handleQueuePopupToggle}
-              onQueueToggle={handleQueuePopupToggleRequest}
-              onFullscreenOpen={openFullscreenPlayer}
-            />
-          </div>
-        )}
-      </div>
-
-      <AnimatePresence initial={false}>
-        {fullscreenPlayerOpen ? (
-          <motion.div
-            key="fullscreen-player-overlay"
-            data-theme="dark"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            onAnimationComplete={() => setFullscreenEffectsReady(fullscreenPlayerOpen)}
-            className="dark absolute inset-0 z-[70] overflow-hidden bg-black will-change-transform"
-          >
-            <FullscreenPlayer
-              onClose={closeFullscreenPlayer}
-              effectsReady={fullscreenEffectsReady}
-            />
-          </motion.div>
-        ) : isFullscreenRoute ? (
-          <div data-theme="dark" className="dark absolute inset-0 z-[70] overflow-hidden bg-black">
-            {children}
-          </div>
-        ) : null}
-      </AnimatePresence>
-
+  const searchPopup = (
       <AnimatePresence>
         {searchOpen && (
           <motion.div
@@ -834,16 +692,29 @@ export default function AppFrame({ children }: AppFrameProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.99 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute right-0 z-[60] flex flex-col items-center pointer-events-none pt-[56px]`}
-            style={{
-              left: SIDEBAR_WIDTH + SHELL_EDGE_GAP,
-              right: SHELL_EDGE_GAP,
-              top: 12,
-            }}
+            className={
+              isMobile
+                ? "absolute inset-0 z-[60] flex flex-col pointer-events-auto bg-bg-primary px-3 pt-3"
+                : "absolute right-0 z-[60] flex flex-col items-center pointer-events-none pt-[56px]"
+            }
+            style={
+              isMobile
+                ? undefined
+                : {
+                    left: SIDEBAR_WIDTH + SHELL_EDGE_GAP,
+                    right: SHELL_EDGE_GAP,
+                    top: 12,
+                  }
+            }
           >
             {/* 1. Search Input Island */}
+            <div className={isMobile ? "flex w-full shrink-0 items-center gap-3" : "contents"}>
             <div
-              className="w-[min(660px,calc(100vw-72px))] h-[54px] rounded-[8px] pointer-events-auto flex items-center px-[18px] gap-[14px] bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+              className={`${
+                isMobile
+                  ? "min-w-0 flex-1 h-[46px] px-[14px] gap-[10px]"
+                  : "w-[min(660px,calc(100vw-72px))] h-[54px] px-[18px] gap-[14px]"
+              } rounded-[8px] pointer-events-auto flex items-center bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl`}
             >
               <span className="shrink-0 flex items-center justify-center text-text-tertiary">
                 <AnimatePresence mode="wait" initial={false}>
@@ -915,6 +786,16 @@ export default function AppFrame({ children }: AppFrameProps) {
                 )}
               </AnimatePresence>
             </div>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => closeSearch()}
+                className="shrink-0 border-none bg-transparent p-0 text-[15px] font-[500] text-text-primary cursor-pointer active:opacity-60"
+              >
+                {t("common.cancel") || "Cancel"}
+              </button>
+            )}
+            </div>
 
             <AnimatePresence mode="wait">
               {hasSearchQuery ? (
@@ -924,9 +805,9 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className={isMobile ? "w-full mt-[8px] flex-1 min-h-0 pointer-events-auto flex flex-col overflow-hidden" : "w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[500px] h-[500px] rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"}
                 >
-                  <div className="flex gap-[6px] px-[14px] pt-[12px] pb-[6px] shrink-0 overflow-x-auto">
+                  <div className="flex gap-[6px] px-[2px] md:px-[14px] pt-[12px] pb-[6px] shrink-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {filterKeys.map((key) => {
                       const label = filterLabels[key];
                       const isActive = activeFilter === key;
@@ -1037,7 +918,7 @@ export default function AppFrame({ children }: AppFrameProps) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.99 }}
                   transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"
+                  className={isMobile ? "w-full mt-[8px] flex-1 min-h-0 pointer-events-auto flex flex-col overflow-hidden" : "w-[min(660px,calc(100vw-72px))] mt-[8px] max-h-[480px] h-auto rounded-[8px] pointer-events-auto flex flex-col overflow-hidden bg-bg-panel/95 border border-border-primary/50 backdrop-blur-2xl"}
                 >
                   <SearchHistoryList
                     onSelectQuery={handleSelectHistoryQuery}
@@ -1056,6 +937,170 @@ export default function AppFrame({ children }: AppFrameProps) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+
+  return (
+    <div
+      ref={appFrameRef}
+      data-custom-bg={hasCustomBg ? "true" : undefined}
+      className={`relative flex ${isMobile ? "flex-col" : "flex-row"} h-full w-full overflow-hidden rounded-5xl bg-bg-canvas p-1.5 gap-1.5`}
+      onScroll={(e) => {
+        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
+        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+      }}
+    >
+      {hasCustomBg && backgroundImage && (
+        <div
+          className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-5xl"
+          aria-hidden="true"
+        >
+          <img
+            src={backgroundImage}
+            alt=""
+            className="w-full h-full object-cover select-none"
+            style={{
+              filter: backgroundBlur > 0 ? `blur(${backgroundBlur}px)` : undefined,
+              transform: backgroundBlur > 0 ? "scale(1.05)" : undefined,
+            }}
+          />
+          {backgroundDim > 0 && (
+            <div
+              className="absolute inset-0 bg-black"
+              style={{ opacity: backgroundDim / 100 }}
+            />
+          )}
+        </div>
+      )}
+
+      {!isMobile && (
+        <aside
+          ref={sidebarRef}
+          className="w-[58px] h-full shrink-0 z-[45] relative"
+        >
+          <Sidebar
+            searchOpen={searchOpen}
+            onSearchToggle={handleSearchToggle}
+          />
+        </aside>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0 h-full relative gap-1.5 overflow-hidden">
+        <main
+          data-custom-bg={hasCustomBg ? "true" : undefined}
+          className={`flex-1 min-w-0 flex flex-col relative h-full ${
+            hasCustomBg ? "" : "bg-bg-primary"
+          } ${
+            isMobile
+              ? "rounded-xl"
+              : `rounded-sm ${
+                  isFullscreenPlayer ? "rounded-tr-none" : "rounded-tr-xl"
+                }`
+          } overflow-hidden`}
+          style={mainStyle}
+        >
+          <div
+            ref={mainScrollRef}
+            className={`h-full ${
+              searchOpen || isFullscreenPlayer
+                ? "overflow-hidden"
+                : "overflow-y-auto"
+            }`}
+          >
+
+            <PageTransition>
+              {isFullscreenRoute ? shellChildrenRef.current : children}
+            </PageTransition>
+          </div>
+
+          <AnimatePresence>
+            {searchOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute inset-0 bg-black/12 backdrop-blur-[2px] pointer-events-auto z-[30]"
+                onClick={() => closeSearch()}
+              />
+            )}
+          </AnimatePresence>
+
+          {isMobile && searchPopup}
+
+          {!isFullscreenPlayer && (
+            <AnimatePresence initial={false}>
+              {isRightDrawerOpen && (
+                <motion.aside
+                  key="right-drawer"
+                  ref={queueDrawerRef}
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  className="pointer-events-auto absolute inset-y-0 right-0 z-[50]"
+                  // capped so the drawer fits narrow (phone) viewports
+                  style={{ width: `min(${RIGHT_DRAWER_WIDTH}px, 100%)` }}
+                >
+                  <RightDrawer
+                    activeTab={rightDrawerTab}
+                    onTabChange={setRightDrawerTab}
+                    onClose={closeRightPanel}
+                  />
+                </motion.aside>
+              )}
+            </AnimatePresence>
+          )}
+        </main>
+
+        {shouldShowMiniPlayer && (
+          <div
+            ref={miniPlayerContainerRef}
+            className="relative z-[40] w-full shrink-0"
+          >
+            <MiniPlayer
+              embedded
+              onQueueOpenChange={handleQueuePopupToggle}
+              onQueueToggle={handleQueuePopupToggleRequest}
+              onFullscreenOpen={openFullscreenPlayer}
+            />
+          </div>
+        )}
+      </div>
+
+      {isMobile && (
+        <div ref={sidebarRef} className="relative z-[45] w-full shrink-0">
+          <MobileTabBar
+            searchOpen={searchOpen}
+            onSearchToggle={handleSearchToggle}
+          />
+        </div>
+      )}
+
+      <AnimatePresence initial={false}>
+        {fullscreenPlayerOpen ? (
+          <motion.div
+            key="fullscreen-player-overlay"
+            data-theme="dark"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => setFullscreenEffectsReady(fullscreenPlayerOpen)}
+            className="dark absolute inset-0 z-[70] overflow-hidden bg-black will-change-transform"
+          >
+            <FullscreenPlayer
+              onClose={closeFullscreenPlayer}
+              effectsReady={fullscreenEffectsReady}
+            />
+          </motion.div>
+        ) : isFullscreenRoute ? (
+          <div data-theme="dark" className="dark absolute inset-0 z-[70] overflow-hidden bg-black">
+            {children}
+          </div>
+        ) : null}
+      </AnimatePresence>
+
+      {!isMobile && searchPopup}
 
       <AddToPlaylistModal />
       <AddToLibraryModal />
@@ -1067,6 +1112,7 @@ export default function AppFrame({ children }: AppFrameProps) {
       <SettingsModal />
       <UpdateModal />
       <UpdateToastBridge />
+      {!isMobile && (
       <WindowControls
         isFullscreen={isFullscreenPlayer}
         style={{
@@ -1076,6 +1122,7 @@ export default function AppFrame({ children }: AppFrameProps) {
           zIndex: 80,
         }}
       />
+      )}
     </div>
   );
 }
