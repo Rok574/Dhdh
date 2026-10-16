@@ -1,0 +1,86 @@
+name: Build iOS (unsigned IPA)
+
+# Manual only. Produces an UNSIGNED .ipa as a workflow artifact. Install it with
+# AltStore or Sideloadly, which sign it with your own Apple ID (free accounts work,
+# the install expires after 7 days). Keep this repository private: Liner's license
+# does not allow public forks.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle identifier (AltStore/Sideloadly may rewrite it anyway)
+        required: false
+        default: app.liner.personal
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      IOS_BUNDLE_ID: ${{ inputs.bundle_id }}
+      # electron is a devDependency; its ~100MB binary is not needed for the iOS bundle
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      VITE_API_URL: https://api.tryliner.fun
+      VITE_COVERS_PROXY_URL: https://covers.tryliner.fun
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      # installs capacitor, builds dist-ios, generates ios/, patches Info.plist, syncs
+      - name: Generate iOS project
+        run: pnpm ios:setup
+
+      - name: Build app (no code signing)
+        run: |
+          set -euo pipefail
+          if [[ -d ios/App/App.xcworkspace ]]; then
+            TARGET=(-workspace ios/App/App.xcworkspace)
+          else
+            TARGET=(-project ios/App/App.xcodeproj)
+          fi
+          xcodebuild "${TARGET[@]}" \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PRODUCT_BUNDLE_IDENTIFIER="${IOS_BUNDLE_ID:-app.liner.personal}" \
+            build
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP="build/Build/Products/Release-iphoneos/App.app"
+          test -d "$APP" || { echo "App.app not found"; find build -name '*.app' -maxdepth 5; exit 1; }
+          rm -rf Payload Liner-unsigned.ipa
+          mkdir Payload
+          cp -R "$APP" Payload/Liner.app
+          zip -qry Liner-unsigned.ipa Payload
+          ls -lh Liner-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Liner-unsigned-ipa
+          path: Liner-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
